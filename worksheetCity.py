@@ -6,6 +6,9 @@ from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 import time
 import re
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import Alignment
 
 def convert_to_mm(value):
     print(f"Original value: {value}")  # Debug print
@@ -413,7 +416,26 @@ def main():
         df = pd.DataFrame(order_data).drop(columns=['Width', 'Length'], errors='ignore')
         safe_customer_name = customer_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
         excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
-        df.to_excel(excel_file_path, index=False)
+
+        # Create a new workbook and select the active worksheet
+        wb = Workbook()
+        ws = wb.active
+
+        # Append DataFrame rows to Excel worksheet
+        for r in dataframe_to_rows(df, index=False, header=True):
+            ws.append(r)
+
+        # Set wrap text for all cells
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True)
+
+        # Set page setup for landscape and fit to width
+        ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+        ws.page_setup.fitToWidth = 1
+
+        # Save the workbook
+        wb.save(excel_file_path)
     else:
         print("No valid order data extracted.")
 

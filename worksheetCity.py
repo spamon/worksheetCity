@@ -9,6 +9,9 @@ import re
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, Font, Border, Side
+from openpyxl.worksheet.page import PageMargins
+
 
 def convert_to_mm(value):
     print(f"Original value: {value}")  # Debug print
@@ -405,7 +408,7 @@ def main():
 
 
 
-    specific_order_url = "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4105/"
+    specific_order_url = "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/"
     driver.get(specific_order_url)
 
     wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]')))
@@ -414,21 +417,38 @@ def main():
 
     if order_data is not None:
         df = pd.DataFrame(order_data).drop(columns=['Width', 'Length'], errors='ignore')
-        safe_customer_name = customer_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+        safe_customer_name = customer_name.replace(' ', '_', -1).replace('/', '_', -1).replace('\\', '_', -1)
         excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
 
         # Create a new workbook and select the active worksheet
         wb = Workbook()
         ws = wb.active
 
-        # Append DataFrame rows to Excel worksheet
-        for r in dataframe_to_rows(df, index=False, header=True):
-            ws.append(r)
-
-        # Set wrap text for all cells
+        # Set all row heights to approximately 100 pixels (75 points)
         for row in ws.iter_rows():
             for cell in row:
-                cell.alignment = Alignment(wrap_text=True)
+                cell.row_dimensions[cell.row].height = 75
+
+        # Append DataFrame rows to Excel worksheet
+        for r_idx, r in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
+            ws.append(r)
+            for c_idx, cell in enumerate(r, 1):
+                ws.cell(row=r_idx, column=c_idx).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                ws.cell(row=r_idx, column=c_idx).border = Border(left=Side(style='thin'), 
+                                                                right=Side(style='thin'), 
+                                                                top=Side(style='thin'), 
+                                                                bottom=Side(style='thin'))
+                if r_idx == 1:  # Applying bold font to header row
+                    ws.cell(row=r_idx, column=c_idx).font = Font(bold=True)
+
+        # Set all column widths to approximately 60 pixels (8.5 character units)
+        column_width = 8.5
+        for column in ws.columns:
+            ws.column_dimensions[column[0].column_letter].width = column_width
+
+        # Set the smallest margin
+        from openpyxl.worksheet.page import PageMargins
+        ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.75, bottom=0.75, header=0.3, footer=0.3)
 
         # Set page setup for landscape and fit to width
         ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
@@ -436,8 +456,10 @@ def main():
 
         # Save the workbook
         wb.save(excel_file_path)
+
     else:
         print("No valid order data extracted.")
+
 
     driver.quit()
 

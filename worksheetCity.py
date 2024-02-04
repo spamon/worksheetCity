@@ -11,6 +11,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.header_footer import HeaderFooter
 
 
 def convert_to_mm(value):
@@ -416,13 +417,14 @@ def main():
     order_data = extract_vertical_blind_data(driver, customer_name)
 
     if order_data is not None:
-        df = pd.DataFrame(order_data).drop(columns=['Width', 'Length'], errors='ignore')
+        df = pd.DataFrame(order_data).drop(columns=['Width', 'Length', 'Measurement Protection', 'Brand'], errors='ignore')
         safe_customer_name = customer_name.replace(' ', '_', -1).replace('/', '_', -1).replace('\\', '_', -1)
         excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
 
         # Create a new workbook and select the active worksheet
         wb = Workbook()
         ws = wb.active
+        
 
         # Set all row heights to approximately 100 pixels (75 points)
         for row in ws.iter_rows():
@@ -453,6 +455,7 @@ def main():
         # Set page setup for landscape and fit to width
         ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
         ws.page_setup.fitToWidth = 1
+        
 
         # Save the workbook
         wb.save(excel_file_path)

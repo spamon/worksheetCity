@@ -12,6 +12,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
+import win32api
+import win32print
 
 
 def convert_to_mm(value):
@@ -104,14 +106,23 @@ def extract_vertical_blind_data(driver, customer_name):
     table = driver.find_element(By.ID, 'data-table')
     rows = table.find_elements(By.TAG_NAME, 'tr')
 
+    try:
+        notes_panel = driver.find_element(By.XPATH, '//div[@class="panel panel-primary"]/div[@class="panel-body"]')
+        customer_notes = notes_panel.text.strip()
+    except:
+        customer_notes = "No notes found."
+
     all_product_data = []
 
     for row in rows[1:]:
         product_data = {'Customer Name': customer_name}
 
+        quantity_cell = row.find_element(By.XPATH, './/td[position()=3]')
+        quantity = quantity_cell.text.strip()  # Get the quantity as a string
+
         fabric_name_elements = row.find_elements(By.XPATH, './/td/a')
         fabric_name = fabric_name_elements[1].text.strip() if len(fabric_name_elements) > 1 else 'Unknown Fabric'
-        product_data['Fabric Name'] = fabric_name
+        product_data['Fabric Name'] = fabric_name + f" x{quantity}"
 
         product_details = row.find_elements(By.XPATH, './/div[@class="basket_custom_option"]')
         for detail in product_details:
@@ -138,7 +149,7 @@ def extract_vertical_blind_data(driver, customer_name):
 
         all_product_data.append(product_data)
 
-    return all_product_data
+    return all_product_data, customer_notes
 
 
 def calculate_sizes_allusion_blinds(product_data):
@@ -407,62 +418,74 @@ def main():
     password_field.send_keys("zBURS0MzzJ@gwTyiLzGIHgObkChm")
     password_field.send_keys(Keys.RETURN)
 
+    # List of URLs to process
+    order_urls = [
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4133/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
+        # Add more URLs here
+    ]
 
+    for specific_order_url in order_urls:
+        driver.get(specific_order_url)
 
-    specific_order_url = "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/"
-    driver.get(specific_order_url)
+        wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]')))
+        customer_name = driver.find_element(By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]').text.strip()
+        order_data, customer_notes = extract_vertical_blind_data(driver, customer_name)
 
-    wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]')))
-    customer_name = driver.find_element(By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]').text.strip()
-    order_data = extract_vertical_blind_data(driver, customer_name)
+        if order_data is not None:
+            df = pd.DataFrame(order_data).drop(columns=['Width', 'Length', 'Measurement Protection', 'Brand'], errors='ignore')
+            safe_customer_name = customer_name.replace(' ', '_', -1).replace('/', '_', -1).replace('\\', '_', -1)
+            excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
 
-    if order_data is not None:
-        df = pd.DataFrame(order_data).drop(columns=['Width', 'Length', 'Measurement Protection', 'Brand'], errors='ignore')
-        safe_customer_name = customer_name.replace(' ', '_', -1).replace('/', '_', -1).replace('\\', '_', -1)
-        excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
+            # Create a new workbook and select the active worksheet
+            wb = Workbook()
+            ws = wb.active
 
-        # Create a new workbook and select the active worksheet
-        wb = Workbook()
-        ws = wb.active
-        
+            # Set all row heights to approximately 100 pixels (75 points)
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.row_dimensions[cell.row].height = 75
 
-        # Set all row heights to approximately 100 pixels (75 points)
-        for row in ws.iter_rows():
-            for cell in row:
-                cell.row_dimensions[cell.row].height = 75
+            # Append DataFrame rows to Excel worksheet
+            for r_idx, r in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
+                ws.append(r)
+                for c_idx, cell in enumerate(r, 1):
+                    ws.cell(row=r_idx, column=c_idx).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    ws.cell(row=r_idx, column=c_idx).border = Border(left=Side(style='thin'),
+                                                                     right=Side(style='thin'),
+                                                                     top=Side(style='thin'),
+                                                                     bottom=Side(style='thin'))
+                    if r_idx == 1:  # Applying bold font to header row
+                        ws.cell(row=r_idx, column=c_idx).font = Font(bold=True)
 
-        # Append DataFrame rows to Excel worksheet
-        for r_idx, r in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-            ws.append(r)
-            for c_idx, cell in enumerate(r, 1):
-                ws.cell(row=r_idx, column=c_idx).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                ws.cell(row=r_idx, column=c_idx).border = Border(left=Side(style='thin'), 
-                                                                right=Side(style='thin'), 
-                                                                top=Side(style='thin'), 
-                                                                bottom=Side(style='thin'))
-                if r_idx == 1:  # Applying bold font to header row
-                    ws.cell(row=r_idx, column=c_idx).font = Font(bold=True)
+            # Set all column widths to approximately 60 pixels (8.5 character units)
+            column_width = 8.5
+            for column in ws.columns:
+                ws.column_dimensions[column[0].column_letter].width = column_width
 
-        # Set all column widths to approximately 60 pixels (8.5 character units)
-        column_width = 8.5
-        for column in ws.columns:
-            ws.column_dimensions[column[0].column_letter].width = column_width
+            # Set the smallest margin
+            from openpyxl.worksheet.page import PageMargins
+            ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.75, bottom=0.75, header=0.3, footer=0.3)
 
-        # Set the smallest margin
-        from openpyxl.worksheet.page import PageMargins
-        ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.75, bottom=0.75, header=0.3, footer=0.3)
+            # Set page setup for landscape and fit to width
+            ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+            ws.page_setup.fitToWidth = 1
 
-        # Set page setup for landscape and fit to width
-        ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
-        ws.page_setup.fitToWidth = 1
-        
+            if customer_notes:
+                ws.append(['Customer Notes:'])
+                ws.append([customer_notes])
 
-        # Save the workbook
-        wb.save(excel_file_path)
+            # Save the workbook with the specified filename
+            wb.save(excel_file_path)
 
-    else:
-        print("No valid order data extracted.")
+            printer_name = win32print.GetDefaultPrinter()
+            win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
+        else:
+            print(f"No valid order data extracted from {specific_order_url}.")
 
     driver.quit()
 

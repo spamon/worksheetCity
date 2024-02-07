@@ -12,8 +12,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
-import win32api
-import win32print
+# import win32api
+# import win32print
 
 
 def convert_to_mm(value):
@@ -79,6 +79,7 @@ def calculate_sizes_vertical_blinds(product_data):
 
         if operation_type == 'Manual Operation':
             cut_rail_size = finished_size - 20
+            product_data['Child Safety'] = 'Side Fix'
         elif operation_type == 'Wand Operation':
             cut_rail_size = finished_size - 10
 
@@ -420,7 +421,7 @@ def main():
 
     # List of URLs to process
     order_urls = [
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4139/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4133/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
@@ -481,8 +482,8 @@ def main():
             # Save the workbook with the specified filename
             wb.save(excel_file_path)
 
-            printer_name = win32print.GetDefaultPrinter()
-            win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
+            # printer_name = win32print.GetDefaultPrinter()
+            # win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
         else:
             print(f"No valid order data extracted from {specific_order_url}.")

@@ -134,7 +134,7 @@ def extract_vertical_blind_data(driver, customer_name):
         # Call the appropriate calculate_sizes function based on Product Type
         if product_data.get('Product Type') == 'Vertical Blind':
             product_data = calculate_sizes_vertical_blinds(product_data)
-        elif product_data.get('Product Type') == 'Roller Blind' and product_data.get('Roller Type') == 'Standard Roller':
+        elif product_data.get('Product Type') == 'Roller Blind' and (product_data.get('Roller Type') == 'Standard Roller' or product_data.get('Roller Type') == 'Forward Roll Roller'):
             product_data = calculate_sizes_standard_roller_blinds(product_data)
         elif product_data.get('Product Type') == 'Allusion Blind':
             product_data = calculate_sizes_allusion_blinds(product_data)
@@ -173,39 +173,6 @@ def calculate_sizes_allusion_blinds(product_data):
         measurement_type = product_data.get('Measurement Type')
 
         finished_size = cut_rail_size = 0
-        louver_drop_size = None  # Initialize louver_drop_size with None
-
-        if measurement_type == 'Recess':
-            finished_size = width - 10
-        elif measurement_type == 'Exact':
-            finished_size = width
-            # Increase louver drop size by 10mm for 'Exact' measurement type
-            louver_drop_size = convert_to_mm(product_data.get('Length', '0'))
-            if louver_drop_size is not None:
-                louver_drop_size += 10
-
-def calculate_sizes_allusion_blinds(product_data):
-    # Filter only for Allusion Blinds
-    if product_data.get('Product Type') == 'Allusion Blind':
-        width_str = product_data.get('Width', '0')
-        width = convert_to_mm(width_str)
-
-        length_str = product_data.get('Length', '0')  # Initialize length_str
-        length = convert_to_mm(length_str)  # Initialize length
-
-        louver_drop_size = None  # Initialize louver_drop_size
-
-        if width is None or length is None:
-            product_data['Finished Size'] = 'Invalid Width' if width is None else ''
-            product_data['Cut Rail Size'] = 'Invalid Width' if width is None else ''
-            product_data['Louver Drop Size'] = 'Invalid Length' if length is None else ''
-            product_data['Qty Louvers'] = ''
-            return product_data
-
-        operation_type = product_data.get('Operation Types')
-        measurement_type = product_data.get('Measurement Type')
-
-        finished_size = cut_rail_size = 0
 
         if measurement_type == 'Recess':
             finished_size = width - 10
@@ -223,22 +190,16 @@ def calculate_sizes_allusion_blinds(product_data):
         product_data['Cut Rail Size'] = f'{cut_rail_size}mm'
         product_data['Qty Louvers'] = ''
 
-        # Update louver drop size and length
-        if length is not None:
-            louver_drop_size = length - 12  # Adjusting louver drop size
-            product_data['Louver Drop Size'] = f'{louver_drop_size}mm'
-            product_data['Length'] = f'{length}mm'
-        else:
-            product_data['Louver Drop Size'] = 'Invalid Length'
+        # Additional code for Louver Drop Size and Length adjustments...
 
-    return product_data
+        return product_data
 
 
 
 
 def calculate_sizes_standard_roller_blinds(product_data):
-    # Filter only for Standard Roller Blinds
-    if product_data.get('Product Type') == 'Roller Blind' and product_data.get('Roller Type') == 'Standard Roller':
+    # Filter for Standard Roller Blinds and Forward Roll Roller Blinds
+    if product_data.get('Product Type') == 'Roller Blind' and (product_data.get('Roller Type') == 'Standard Roller' or product_data.get('Roller Type') == 'Forward Roll Roller'):
         width_str = product_data.get('Width', '0')
         width = convert_to_mm(width_str)
 
@@ -256,13 +217,6 @@ def calculate_sizes_standard_roller_blinds(product_data):
         length = convert_to_mm(length_str)
         fabric_drop = length + 300
 
-        # Debug prints
-        print(f'Width: {width}')
-        print(f'Fabric Width: {fabric_width}')
-        print(f'Rail Width: {rail_width}')
-        print(f'Length: {length}')
-        print(f'Fabric Drop: {fabric_drop}')
-
         # Add the calculated values to the product_data dictionary
         product_data['Fabric Width'] = f'{fabric_width}mm'
         product_data['Rail Width'] = f'{rail_width}mm'
@@ -273,6 +227,7 @@ def calculate_sizes_standard_roller_blinds(product_data):
         product_data.pop('Measurement Protection', None)
 
     return product_data
+
 
 def calculate_sizes_cassette_roller_blind(product_data):
     # Filter only for Cassette Roller Blinds
@@ -461,7 +416,7 @@ def calculate_sizes_vertical_blind_slats(product_data):
         product_data['Adjusted Height'] = f'{adjusted_height}mm'
 
     # # Remove unwanted keys
-    product_data.pop('Height required', None)
+    # product_data.pop('Height required', None)
     # product_data.pop('Replacement Vertical Slat Weights & Chains required', None)
 
     return product_data
@@ -490,11 +445,11 @@ def main():
 
     # List of URLs to process
     order_urls = [
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4169/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4097/",
         "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4159/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4102/",
-        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4133/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
         # Add more URLs here
     ]
 

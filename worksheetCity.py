@@ -14,6 +14,8 @@ from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
 # import win32api
 # import win32print
+from openpyxl.utils import get_column_letter
+
 
 
 def convert_to_mm(value):
@@ -204,8 +206,7 @@ def calculate_sizes_standard_roller_blinds(product_data):
         width = convert_to_mm(width_str)
 
         if width is None:
-            product_data['Fabric Width'] = 'Invalid Width'
-            product_data['Rail Width'] = 'Invalid Width'
+            product_data['Fabric + Rail Width'] = 'Invalid Width'
             product_data['Fabric Drop'] = 'Invalid Length'
             return product_data
 
@@ -217,16 +218,21 @@ def calculate_sizes_standard_roller_blinds(product_data):
         length = convert_to_mm(length_str)
         fabric_drop = length + 300
 
-        # Add the calculated values to the product_data dictionary
-        product_data['Fabric Width'] = f'{fabric_width}mm'
-        product_data['Rail Width'] = f'{rail_width}mm'
+        # Since Fabric Width and Rail Width are identical, use only one of them
+        product_data['Fabric + Rail Width'] = f'{fabric_width}mm'
+
+        # Set Fabric Drop
         product_data['Fabric Drop'] = f'{fabric_drop}mm'
 
         # Remove unwanted keys
+        product_data.pop('Fabric Width', None)
+        product_data.pop('Rail Width', None)
         product_data.pop('Qty Louvers', None)
         product_data.pop('Measurement Protection', None)
 
     return product_data
+
+
 
 
 def calculate_sizes_cassette_roller_blind(product_data):
@@ -429,8 +435,6 @@ def calculate_sizes_vertical_blind_slats(product_data):
 
 
 
-
-
 def main():
     driver = webdriver.Chrome()
     driver.maximize_window()
@@ -443,71 +447,69 @@ def main():
     password_field.send_keys("zBURS0MzzJ@gwTyiLzGIHgObkChm")
     password_field.send_keys(Keys.RETURN)
 
-    # List of URLs to process
     order_urls = [
         "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4097/",
         "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4133/",
         "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
         "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
-        # Add more URLs here
+        # ... (add your other URLs here)
     ]
 
     for specific_order_url in order_urls:
         driver.get(specific_order_url)
-
         wait.until(EC.visibility_of_element_located((By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]')))
         customer_name = driver.find_element(By.XPATH, '//div[@class="customer-description"]/div[@class="name mb10"]').text.strip()
         order_data, customer_notes = extract_vertical_blind_data(driver, customer_name)
 
         if order_data is not None:
-            df = pd.DataFrame(order_data).drop(columns=['Width', 'Length', 'Measurement Protection', 'Brand'], errors='ignore')
+            grouped_data = {}
+            for data in order_data:
+                product_type = data.get('Product Type', 'Other')
+                if product_type not in grouped_data:
+                    grouped_data[product_type] = []
+                grouped_data[product_type].append(data)
+
             safe_customer_name = customer_name.replace(' ', '_', -1).replace('/', '_', -1).replace('\\', '_', -1)
             excel_file_path = f'{safe_customer_name}_extracted_products.xlsx'
 
-            # Create a new workbook and select the active worksheet
             wb = Workbook()
-            ws = wb.active
+            wb.remove(wb.active)  # Remove the default sheet
 
-            # Set all row heights to approximately 100 pixels (75 points)
-            for row in ws.iter_rows():
-                for cell in row:
-                    cell.row_dimensions[cell.row].height = 75
+            for product_type, data_list in grouped_data.items():
+                ws = wb.create_sheet(title=product_type)
+                ws.append([product_type])  # Write the product type as a title
+                ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(data_list[0]))  # Merge cells for the title
+                ws['A1'].font = Font(bold=True, size=14)  # Set font style for title
+                ws['A1'].alignment = Alignment(horizontal='center')
 
-            # Append DataFrame rows to Excel worksheet
-            for r_idx, r in enumerate(dataframe_to_rows(df, index=False, header=True), 1):
-                ws.append(r)
-                for c_idx, cell in enumerate(r, 1):
-                    ws.cell(row=r_idx, column=c_idx).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-                    ws.cell(row=r_idx, column=c_idx).border = Border(left=Side(style='thin'),
-                                                                     right=Side(style='thin'),
-                                                                     top=Side(style='thin'),
-                                                                     bottom=Side(style='thin'))
-                    if r_idx == 1:  # Applying bold font to header row
-                        ws.cell(row=r_idx, column=c_idx).font = Font(bold=True)
+                df = pd.DataFrame(data_list).drop(columns=['Product Type', 'Width', 'Length', 'Measurement Protection', 'Brand'], errors='ignore')
 
-            # Set all column widths to approximately 60 pixels (8.5 character units)
-            column_width = 8.5
-            for column in ws.columns:
-                ws.column_dimensions[column[0].column_letter].width = column_width
+                for r_idx, r in enumerate(dataframe_to_rows(df, index=False, header=True), 2):  # Start from row 2
+                    ws.append(r)
+                    for c_idx, cell in enumerate(r, 1):
+                        ws.cell(row=r_idx, column=c_idx).alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                        ws.cell(row=r_idx, column=c_idx).border = Border(left=Side(style='thin'),
+                                                                        right=Side(style='thin'),
+                                                                        top=Side(style='thin'),
+                                                                        bottom=Side(style='thin'))
+                        if r_idx == 2:
+                            ws.cell(row=r_idx, column=c_idx).font = Font(bold=True)
 
-            # Set the smallest margin
-            from openpyxl.worksheet.page import PageMargins
-            ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.75, bottom=0.75, header=0.3, footer=0.3)
+                # Set column widths, skipping the first row
+                column_width = 8.5
+                for col in range(1, len(data_list[0]) + 1):
+                    ws.column_dimensions[get_column_letter(col)].width = column_width
 
-            # Set page setup for landscape and fit to width
-            ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
-            ws.page_setup.fitToWidth = 1
+                ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.75, bottom=0.75, header=0.3, footer=0.3)
+                ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+                ws.page_setup.fitToWidth = 1
 
-            if customer_notes:
-                ws.append(['Customer Notes:'])
-                ws.append([customer_notes])
+                if customer_notes:
+                    ws.append(['Customer Notes:'])
+                    ws.append([customer_notes])
 
-            # Save the workbook with the specified filename
             wb.save(excel_file_path)
-
-            # printer_name = win32print.GetDefaultPrinter()
-            # win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
         else:
             print(f"No valid order data extracted from {specific_order_url}.")

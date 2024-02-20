@@ -12,8 +12,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
-# import win32api
-# import win32print
+import win32api
+import win32print
 from openpyxl.utils import get_column_letter
 
 
@@ -59,6 +59,8 @@ def calculate_sizes_vertical_blinds(product_data):
         width_str = product_data.get('Width', '0')
         width = convert_to_mm(width_str)
 
+        louver_drop_size = None
+
         if width is None:
             product_data['Finished Size'] = 'Invalid Width'
             product_data['Cut Rail Size'] = 'Invalid Width'
@@ -67,6 +69,9 @@ def calculate_sizes_vertical_blinds(product_data):
 
         operation_type = product_data.get('Operation Types')
         measurement_type = product_data.get('Measurement Type')
+
+          # Debug print
+        print(f"Operation Type: {operation_type}")
 
         finished_size = cut_rail_size = 0
 
@@ -82,21 +87,25 @@ def calculate_sizes_vertical_blinds(product_data):
         if operation_type == 'Manual Operation':
             cut_rail_size = finished_size - 20
             product_data['Child Safety'] = 'Side Fix'
-        elif operation_type == 'Wand Operation':
+        elif operation_type == 'Wand Operation' or operation_type == 'Want Operation':
+            print("Processing Want Operation")
             cut_rail_size = finished_size - 10
 
         product_data['Finished Size'] = f'{finished_size}mm'
         product_data['Cut Rail Size'] = f'{cut_rail_size}mm'
         product_data['Qty Louvers'] = ''
         
-        # Check if louver drop size is not None and add it to product_data
+        print("Louver Drop Size (Before):", product_data.get('Length'))
+
+        louver_drop_size = convert_to_mm(product_data.get('Length', '0'))
         if louver_drop_size is not None:
+            louver_drop_size += 10  # Example calculation
             product_data['Louver Drop Size'] = f'{louver_drop_size}mm'
         else:
             product_data['Louver Drop Size'] = 'Invalid Length'
 
-        product_data.pop('Length', None)
-        product_data.pop('Measurement Protection', None)
+        # Debug the louver drop size after calculation
+        print("Louver Drop Size (After):", product_data.get('Louver Drop Size'))
 
 
     return product_data
@@ -127,11 +136,13 @@ def extract_vertical_blind_data(driver, customer_name):
         fabric_name = fabric_name_elements[1].text.strip() if len(fabric_name_elements) > 1 else 'Unknown Fabric'
         product_data['Fabric Name'] = fabric_name + f" x{quantity}"
 
+
         product_details = row.find_elements(By.XPATH, './/div[@class="basket_custom_option"]')
         for detail in product_details:
             label = detail.find_element(By.CLASS_NAME, 'basket_custom_option_label').text.strip(':')
             value = detail.find_element(By.XPATH, './/following-sibling::div').text
             product_data[label] = value
+            
 
         # Call the appropriate calculate_sizes function based on Product Type
         if product_data.get('Product Type') == 'Vertical Blind':
@@ -175,26 +186,51 @@ def calculate_sizes_allusion_blinds(product_data):
         measurement_type = product_data.get('Measurement Type')
 
         finished_size = cut_rail_size = 0
+        louver_drop_size = None  # Initialize louver_drop_size with None
 
         if measurement_type == 'Recess':
             finished_size = width - 10
         elif measurement_type == 'Exact':
             finished_size = width
+            # Increase louver drop size by 10mm for 'Exact' measurement type
+            louver_drop_size = convert_to_mm(product_data.get('Length', '0'))
+            if louver_drop_size is not None:
+                louver_drop_size += 10
+
+        # For Allusion Blinds, subtract 12mm from the length
+        length_str = product_data.get('Length', '0')
+        length = convert_to_mm(length_str)
+        if length is not None:
+            adjusted_length = length - 12
+            louver_drop_size = adjusted_length  # Store the adjusted louver drop size in a variable
+            product_data['Length'] = f'{adjusted_length}mm'  # Update the Length value
+        else:
+            louver_drop_size = None
+            product_data['Louver Drop Size'] = 'Invalid Length'
+
+        # Check if louver drop size is not None and add it to product_data
+        if louver_drop_size is not None:
+            product_data['Louver Drop Size'] = f'{louver_drop_size}mm'
 
         if operation_type == 'Manual Operation':
             cut_rail_size = finished_size - 20
-            product_data['Child Safety'] = 'Side Fix'  # Example value, adjust as needed
-        elif operation_type == 'Wand Operation':
+        elif operation_type == 'Want Operation':
             cut_rail_size = finished_size - 10
-            product_data['Child Safety'] = 'Wand Control'  # Example value, adjust as needed
 
         product_data['Finished Size'] = f'{finished_size}mm'
         product_data['Cut Rail Size'] = f'{cut_rail_size}mm'
         product_data['Qty Louvers'] = ''
+        
+        # Check if louver drop size is not None and add it to product_data
+        if louver_drop_size is not None:
+            product_data['Louver Drop Size'] = f'{louver_drop_size}mm'
+        else:
+            product_data['Louver Drop Size'] = 'Invalid Length'
 
-        # Additional code for Louver Drop Size and Length adjustments...
+        # Update the Length value for Allusion Blinds
+        product_data['Length'] = f'{length}mm'
 
-        return product_data
+    return product_data
 
 
 
@@ -448,11 +484,11 @@ def main():
     password_field.send_keys(Keys.RETURN)
 
     order_urls = [
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4097/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4134/",
-        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4133/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4257/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4211/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4102/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
         # ... (add your other URLs here)
     ]
 
@@ -510,6 +546,10 @@ def main():
                     ws.append([customer_notes])
 
             wb.save(excel_file_path)
+
+            
+            printer_name = win32print.GetDefaultPrinter()
+            win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
         else:
             print(f"No valid order data extracted from {specific_order_url}.")

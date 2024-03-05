@@ -480,7 +480,7 @@ def main():
     username_field = driver.find_element(By.CLASS_NAME, "form-control[name='email']")
     password_field = driver.find_element(By.CLASS_NAME, "form-control[name='password']")
     username_field.send_keys("shaun_mcgrath451@btinternet.com")
-    password_field.send_keys("zBURS0MzzJ@gwTyiLzGIHgObkChm")
+    password_field.send_keys("")
     password_field.send_keys(Keys.RETURN)
 
     order_urls = [

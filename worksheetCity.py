@@ -12,8 +12,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
-# import win32api
-# import win32print
+import win32api
+import win32print
 from openpyxl.utils import get_column_letter
 
 
@@ -391,6 +391,9 @@ def calculate_sizes_perfect_fit_pleated(product_data):
             product_data['Top and Bottom Frame'] = 'Invalid Width'
             product_data['Side Frame'] = 'Invalid Length'
             product_data['Cells'] = ''
+            product_data['Cord Colour'] = ''
+            product_data['Bracket Qty'] = ''
+            product_data['Num of Cords'] = ''
             return product_data
 
         # Calculate Fabric Width and Fabric Rail
@@ -408,6 +411,9 @@ def calculate_sizes_perfect_fit_pleated(product_data):
         product_data['Top and Bottom Frame'] = f'{top_bottom_frame}mm'
         product_data['Side Frame'] = f'{side_frame}mm'
         product_data['Cells'] = ''  # Placeholder for manual entry
+        product_data['Cord Colour'] = ''
+        product_data['Bracket Qty'] = ''
+        product_data['Num of Cords'] = ''
 
         # Remove unwanted keys
         product_data.pop('Measurement Protection', None)
@@ -484,7 +490,7 @@ def main():
     password_field.send_keys(Keys.RETURN)
 
     order_urls = [
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4299/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4364/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4211/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4102/",
         # # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
@@ -548,8 +554,8 @@ def main():
             wb.save(excel_file_path)
 
             
-            # printer_name = win32print.GetDefaultPrinter()
-            # win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
+            printer_name = win32print.GetDefaultPrinter()
+            win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
         else:
             print(f"No valid order data extracted from {specific_order_url}.")

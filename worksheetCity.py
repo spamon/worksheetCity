@@ -12,8 +12,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.worksheet.page import PageMargins
 from openpyxl.worksheet.header_footer import HeaderFooter
-import win32api
-import win32print
+# import win32api
+# import win32print
 from openpyxl.utils import get_column_letter
 
 
@@ -99,7 +99,7 @@ def calculate_sizes_vertical_blinds(product_data):
 
         louver_drop_size = convert_to_mm(product_data.get('Length', '0'))
         if louver_drop_size is not None:
-            louver_drop_size += 10  # Example calculation
+            # louver_drop_size += 10  # Example calculation
             product_data['Louver Drop Size'] = f'{louver_drop_size}mm'
         else:
             product_data['Louver Drop Size'] = 'Invalid Length'
@@ -484,10 +484,10 @@ def main():
     password_field.send_keys(Keys.RETURN)
 
     order_urls = [
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4257/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4211/",
-        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4102/",
-        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
+        "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4299/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4211/",
+        # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4102/",
+        # # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4132/",
         # "https://www.emeraldblindsandcurtains.co.uk/z-admin/orders/view/4131/"
         # ... (add your other URLs here)
     ]
@@ -548,8 +548,8 @@ def main():
             wb.save(excel_file_path)
 
             
-            printer_name = win32print.GetDefaultPrinter()
-            win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
+            # printer_name = win32print.GetDefaultPrinter()
+            # win32api.ShellExecute(0, "print", excel_file_path, f'/d:"{printer_name}"', ".", 0)
 
         else:
             print(f"No valid order data extracted from {specific_order_url}.")
